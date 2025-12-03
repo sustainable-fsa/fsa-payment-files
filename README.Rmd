@@ -114,7 +114,7 @@ lfp_payments <-
 ## The Normal Grazing Period data files use FSA county definitions
 ## Download from the FSA_Counties_dd17 archive
 counties <- 
-  sf::read_sf("https://sustainable-fsa.github.io/fsa-counties-dd17/fsa-counties-dd17.topojson",
+  sf::read_sf("https://sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
               layer = "counties") |>
   sf::st_set_crs("EPSG:4326") |>
   sf::st_transform("EPSG:5070")
@@ -168,7 +168,7 @@ ggplot(counties) +
 
 The USDA FSA uses custom county definitions that differ from standard ANSI/FIPS codes used by the U.S. Census. To align the Farm Payment Files with geographic boundaries, use the FSA-specific geospatial dataset archived in the companion repository:
 
-🔗 [**sustainable-fsa/fsa-counties-dd17**](https://sustainable-fsa.github.io/fsa-counties-dd17/)
+🔗 [**sustainable-fsa/fsa-counties-dd17**](https://sustainable-fsa.com/fsa-counties-dd17/)
 
 FSA county codes are documented in [FSA Handbook 1-CM, Exhibit 101](https://www.fsa.usda.gov/Internet/FSA_File/1-cm_r03_a80.pdf).
 
@@ -178,7 +178,7 @@ FSA county codes are documented in [FSA Handbook 1-CM, Exhibit 101](https://www.
 
 If using this data in published work, please cite:
 
-> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Archived by R. Kyle Bocinsky. Accessed via GitHub archive, YYYY. https://sustainable-fsa.github.io/fsa-payment-files/
+> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Archived by R. Kyle Bocinsky. Accessed via GitHub archive, YYYY. https://sustainable-fsa.com/fsa-payment-files/
 
 ---
 

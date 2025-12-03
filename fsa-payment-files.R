@@ -1,7 +1,29 @@
+# update.packages(repos = "https://cran.rstudio.com/",
+#                 ask = FALSE)
+
+install.packages("pak",
+                 repos = "https://cran.rstudio.com/")
+
+# installed.packages() |>
+#   rownames() |>
+#   pak::pkg_install(upgrade = TRUE,
+#                  ask = FALSE)
+
+pak::pak(
+  c(
+    "magrittr",
+    "tidyverse",
+    "furrr",
+    "paws",
+    "future.mirai"
+  )
+)
+
 library(magrittr)
 library(tidyverse)
 library(furrr)
 library(paws)
+library(future.mirai)
 
 update_payments <- TRUE
 
@@ -24,13 +46,13 @@ if(update_payments){
       )
     } %>%
     dplyr::rowwise() %>%
-    dplyr::mutate(request = ifelse(stringr::str_detect(request, "xlsx"),
+    dplyr::mutate(
+      request = ifelse(stringr::str_detect(request, "xlsx"),
                                    request,
                                    xml2::read_html(request) %>%
                                      xml2::xml_find_all(".//a") %>%
                                      xml2::xml_attr("href") %>%
                                      stringr::str_subset("xls")
-                                   
     ),
     outfile = 
       file.path(raw_path, 
@@ -39,8 +61,7 @@ if(update_payments){
     )
   
   
-  plan(multisession, 
-       workers = future::availableCores() - 1)
+  plan(mirai_multisession)
   
   dl_if_missing <-
     function(x, out){

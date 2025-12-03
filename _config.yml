@@ -1,12 +1,11 @@
 title: FSA Farm Payment Files
 description: Official farm payment files from the USDA Farm Service Agency, 2004–2024
 author: R. Kyle Bocinsky
-url: "https://sustainable-fsa.github.io/fsa-payment-files/"  # Your GitHub Pages URL
+url: "https://sustainable-fsa.com/fsa-payment-files/" # Your GitHub Pages URL
 baseurl: "/fsa-payment-files"
 
 remote_theme: jekyll/minima
 plugins:
   - jekyll-remote-theme
-
 # minima:
 #   skin: classic
