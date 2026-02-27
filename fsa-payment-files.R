@@ -38,7 +38,7 @@ if(update_payments){
     xml2::read_html("https://www.fsa.usda.gov/news-room/efoia/electronic-reading-room/frequently-requested-information/payment-files-information/index") %>%
     xml2::xml_find_all(".//a") %>%
     xml2::xml_attr("href") %>%
-    stringr::str_subset("xls|pmt24") %>%
+    stringr::str_subset("xls|pmt24|pmt25") %>%
     stringr::str_remove("^\\/") %>%
     {
       tibble::tibble(
@@ -48,16 +48,16 @@ if(update_payments){
     dplyr::rowwise() %>%
     dplyr::mutate(
       request = ifelse(stringr::str_detect(request, "xlsx"),
-                                   request,
-                                   xml2::read_html(request) %>%
-                                     xml2::xml_find_all(".//a") %>%
-                                     xml2::xml_attr("href") %>%
-                                     stringr::str_subset("xls")
-    ),
-    outfile = 
-      file.path(raw_path, 
-                basename(request)) %>%
-      stringr::str_replace_all("%20", " ")
+                       request,
+                       xml2::read_html(request) %>%
+                         xml2::xml_find_all(".//a") %>%
+                         xml2::xml_attr("href") %>%
+                         stringr::str_subset("xls")
+      ),
+      outfile = 
+        file.path(raw_path, 
+                  basename(request)) %>%
+        stringr::str_replace_all("%20", " ")
     )
   
   
@@ -92,9 +92,25 @@ if(update_payments){
   out <-
     raw_files$outfile %>%
     magrittr::set_names(.,basename(.)) %>%
-    furrr::future_map_dfr(readxl::read_excel, 
-                          .id = "Source File",
-                          col_types = "text") %>%
+    furrr::future_map_dfr(
+      # purrr::map_dfr(
+      \(x){
+        message("Reading: ", x)
+        out_table <- 
+          tryCatch(
+            readxl::read_excel(x, col_types = "text"),
+            error = \(e){NULL}
+          )
+        
+        if(is.null(out_table)){
+          warning("Failed to read: ", x)
+        }
+        
+        return(out_table)
+      }, 
+      .id = "Source File")
+  
+  out %<>%
     dplyr::mutate(`Source File` = factor(`Source File`),
                   `State FSA Name` = factor(`State FSA Name`),
                   `County FSA Name` = factor(`County FSA Name`),
@@ -131,6 +147,7 @@ if(update_payments){
                    `State FSA Name`,
                    `Formatted Payee Name`)
   
+  
   out %>%
     dplyr::group_by(`State FSA Name`,
                     `Accounting Program Year`) %>%
@@ -142,11 +159,16 @@ if(update_payments){
                          max_open_files = 4000L,
                          min_rows_per_group = 100000L)
   
+  # keyring::key_set("aws_access_key_id")
+  # keyring::key_set("aws_secret_access_key")
+  # keyring::key_set("aws_session_token")
+  
   aws_s3 <-
     paws::s3(credentials = 
                list(creds = list(
                  access_key_id = keyring::key_get("aws_access_key_id"),
-                 secret_access_key = keyring::key_get("aws_secret_access_key")
+                 secret_access_key = keyring::key_get("aws_secret_access_key"),
+                 session_token = keyring::key_get("aws_session_token")
                )))
   
   uploads <-

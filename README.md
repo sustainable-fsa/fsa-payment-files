@@ -46,7 +46,7 @@ The `fsa-payment-files.R` script performs the following steps:
 
 The full archive is hosted in a public Amazon S3 bucket:
 
-    s3://sustainable-fsa/fsa-payments/
+    s3://sustainable-fsa/fsa-payment-files/
 
 You can access the data directly using:
 
@@ -60,16 +60,6 @@ aws s3 ls s3://sustainable-fsa/fsa-payment-files/ --no-sign-request
 
 ``` r
 library(arrow)
-```
-
-    ## 
-    ## Attaching package: 'arrow'
-
-    ## The following object is masked from 'package:utils':
-    ## 
-    ##     timestamp
-
-``` r
 dataset <- 
   open_dataset("s3://sustainable-fsa/fsa-payment-files/", 
                filesystem = s3_bucket("sustainable-fsa", anonymous = TRUE))
@@ -128,7 +118,8 @@ lfp_payments <-
   dplyr::filter(`Accounting Program Description` %in% 
                   c(
                     "LIVESTOCK FORAGE PROGRAM",
-                    "LIVESTOCK FORAGE DISASTER PROGRAM"
+                    "LIVESTOCK FORAGE DISASTER PROGRAM",
+                    "LIVESTOCK FORAGE DISASTER PROGRAM (COF)"
                   )) |>
   dplyr::group_by(`FSA Code`) |>
   dplyr::summarise(
@@ -136,16 +127,13 @@ lfp_payments <-
   ) |>
   dplyr::collect()
 
-## The Normal Grazing Period data files use FSA county definitions
 ## Download from the FSA_Counties_dd17 archive
 counties <- 
-  sf::read_sf("https://sustainable-fsa.github.io/fsa-counties-dd17/fsa-counties-dd17.topojson",
+  sf::read_sf("https://sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
               layer = "counties") |>
   sf::st_set_crs("EPSG:4326") |>
   sf::st_transform("EPSG:5070")
 
-## Calculate the 2024 Normal Grazing Period duration for Native Pasture, and
-## combine with the county data
 lfp_payments_counties <-
   lfp_payments |>
   dplyr::select(id = `FSA Code`,
@@ -177,17 +165,32 @@ ggplot(counties) +
           fill = NA,
           color = "white",
           linewidth = 0.2) +
-  khroma::scale_fill_batlowK(limits = c(0, NA),
-                             breaks = seq(0, 80000000, 10000000),
-                             # trans = "log",
-                             name = "Payments\n($ Millions)",
-                             labels = scales::label_currency(scale = 0.000001, suffix = "M")) +
-  labs(title = "FSA Livestock Forage Disaster Program",
-       subtitle = "Total Payments, 2008–2024") +
-  theme_void()
+  scale_fill_viridis_c(#palette = "OrRd",
+    option = "turbo",
+    direction = 1,
+    na.value = "grey80",
+    limits = c(0,100000000),
+    breaks = c(0,10000,100000,1000000,10000000, 100000000),
+    trans = scales::pseudo_log_trans(sigma = 1000),
+    labels=scales::label_currency(scale_cut = scales::cut_short_scale()),
+    name = 
+      paste0(
+        "Livestock Forage Program Payments, 2008–2025\nTotal: ",  
+        scales:::dollar(sum(lfp_payments_counties$`Disbursement Amount`, na.rm = TRUE)),
+        " as of ", format(lubridate::today(), "%B %d, %Y")
+      ),
+    guide = guide_colorbar(title.position = "top") ) +
+  theme_void(base_size = 24) +
+  theme(legend.position = "bottom",
+        legend.justification = "center",
+        legend.key.width = unit(0.15, "npc"),
+        legend.title = element_text(size = 16, hjust = 0.5),
+        legend.text = element_text(size = 14, hjust = 0.5),
+        strip.text.x = element_text(margin = margin(b = 5)),
+        strip.text.y = element_text(margin = margin(r = 5)))
 ```
 
-<img src="./example-1.png" style="display: block; margin: auto;" />
+<img src="./example-1.png" alt="" style="display: block; margin: auto;" />
 
 ------------------------------------------------------------------------
 
@@ -199,7 +202,7 @@ with geographic boundaries, use the FSA-specific geospatial dataset
 archived in the companion repository:
 
 🔗
-[**sustainable-fsa/fsa-counties-dd17**](https://sustainable-fsa.github.io/fsa-counties-dd17/)
+[**sustainable-fsa/fsa-counties-dd17**](https://sustainable-fsa.com/fsa-counties-dd17/)
 
 FSA county codes are documented in [FSA Handbook 1-CM, Exhibit
 101](https://www.fsa.usda.gov/Internet/FSA_File/1-cm_r03_a80.pdf).
@@ -210,9 +213,9 @@ FSA county codes are documented in [FSA Handbook 1-CM, Exhibit
 
 If using this data in published work, please cite:
 
-> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Archived by
+> USDA Farm Service Agency. *Farm Payment Files, 2004–2025*. Archived by
 > R. Kyle Bocinsky. Accessed via GitHub archive, YYYY.
-> <https://sustainable-fsa.github.io/fsa-payment-files/>
+> <https://sustainable-fsa.com/fsa-payment-files/>
 
 ------------------------------------------------------------------------
 
@@ -245,16 +248,16 @@ Locator**](https://offices.sc.egov.usda.gov/locator/app)
 This project is part of:
 
 **[*Enhancing Sustainable Disaster Relief in FSA
-Programs*](https://www.ars.usda.gov/research/project/?accnNo=444612)**  
-Supported by USDA OCE/OEEP and USDA Climate Hubs  
+Programs*](https://www.ars.usda.gov/research/project/?accnNo=444612)**\
+Supported by USDA OCE/OEEP and USDA Climate Hubs\
 Prepared by the [Montana Climate Office](https://climate.umt.edu)
 
 ------------------------------------------------------------------------
 
 ## 📬 Contact
 
-**R. Kyle Bocinsky**  
-Director of Climate Extension  
-Montana Climate Office  
-📧 <kyle.bocinsky@umontana.edu>  
+**R. Kyle Bocinsky**\
+Director of Climate Extension\
+Montana Climate Office\
+📧 <kyle.bocinsky@umontana.edu>\
 🌐 <https://climate.umt.edu>
