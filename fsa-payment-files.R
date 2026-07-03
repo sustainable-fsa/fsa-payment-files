@@ -151,13 +151,15 @@ if(update_payments){
   out %>%
     dplyr::group_by(`State FSA Name`,
                     `Accounting Program Year`) %>%
-    arrow::write_dataset(path = "fsa-payment-files",
-                         format = "parquet",
-                         existing_data_behavior = "delete_matching",
-                         version = "latest",
-                         max_partitions = 4000L,
-                         max_open_files = 4000L,
-                         min_rows_per_group = 100000L)
+    arrow::write_dataset(
+      path = "fsa-payment-files",
+      format = "parquet",
+      existing_data_behavior = "delete_matching",
+      version = "latest",
+      max_partitions = 4000L,
+      max_open_files = 4000L,
+      min_rows_per_group = 100000L
+    )
   
   # keyring::key_set("aws_access_key_id")
   # keyring::key_set("aws_secret_access_key")

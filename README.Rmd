@@ -25,7 +25,7 @@ The included R script automates the discovery, download, and conversion of these
 
 The `fsa-payment-files.R` script performs the following steps:
 
-1. **Discovery**: Scrapes the FSA payment files website to find downloadable Excel files (2004–2024).
+1. **Discovery**: Scrapes the FSA payment files website to find downloadable Excel files (2004–2025).
 2. **Download**: Saves original files to `data-raw/`.
 3. **Extraction**: Parses each Excel file, handling annual variation in schema and formatting.
 4. **Standardization**: Renames fields, standardizes formats (e.g., FIPS codes, program names), and removes duplicates.
@@ -50,11 +50,14 @@ aws s3 ls s3://sustainable-fsa/fsa-payment-files/ --no-sign-request
 ```
 
 ### In R with `arrow` and `s3://` support
-```r
+```{r}
 library(arrow)
+
 dataset <- 
   open_dataset("s3://sustainable-fsa/fsa-payment-files/", 
                filesystem = s3_bucket("sustainable-fsa", anonymous = TRUE))
+
+dataset
 ```
 
 ---
@@ -93,7 +96,7 @@ library(tigris)  # For state boundaries
 library(rmapshaper) # For innerlines function
 
 # Example accessing payment files on S3
-# A map of 2024 LFP Payments by county
+# A map of 2025 LFP Payments by county
 
 lfp_payments <-
   # arrow::s3_bucket("sustainable-fsa/fsa-payment-files",
