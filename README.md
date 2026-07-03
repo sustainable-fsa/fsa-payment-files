@@ -60,10 +60,41 @@ aws s3 ls s3://sustainable-fsa/fsa-payment-files/ --no-sign-request
 
 ``` r
 library(arrow)
+```
+
+    ## 
+    ## Attaching package: 'arrow'
+
+    ## The following object is masked from 'package:utils':
+    ## 
+    ##     timestamp
+
+``` r
 dataset <- 
   open_dataset("s3://sustainable-fsa/fsa-payment-files/", 
                filesystem = s3_bucket("sustainable-fsa", anonymous = TRUE))
+
+dataset
 ```
+
+    ## FileSystemDataset with 1426 Parquet files
+    ## 16 columns
+    ## County FSA Name: dictionary<values=string, indices=int16>
+    ## FSA Code: dictionary<values=string, indices=int16>
+    ## Accounting Program Code: string
+    ## Accounting Program Description: string
+    ## Payment Date: date32[day]
+    ## Disbursement Amount: double
+    ## Formatted Payee Name: string
+    ## Address Information Line: string
+    ## Delivery Address Line: string
+    ## City Name: string
+    ## State Abbreviation: string
+    ## Zip Code: string
+    ## Delivery Point Bar Code: string
+    ## Source File: dictionary<values=string, indices=int16>
+    ## State FSA Name: string
+    ## Accounting Program Year: int32
 
 ------------------------------------------------------------------------
 
@@ -209,15 +240,15 @@ FSA county codes are documented in [FSA Handbook 1-CM, Exhibit
 
 ------------------------------------------------------------------------
 
-## 📜 Citation
+## 📝 Citation
 
-If using this data in published work, please cite:
+If you use this data in published work, please cite:
 
-> USDA Farm Service Agency. *Farm Payment Files, 2004–2025*. Archived by
-> R. Kyle Bocinsky. Accessed via GitHub archive, YYYY.
-> <https://sustainable-fsa.com/fsa-payment-files/>
+> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Curated and archived by R. Kyle Bocinsky, Montana Climate Office, University of Montana. Sustainable FSA project. Accessed YYYY-MM-DD. <https://sustainable-fsa.com/fsa-payment-files/>
 
-------------------------------------------------------------------------
+Machine-readable metadata are in [`CITATION.cff`](CITATION.cff); GitHub's **Cite this repository** button (top right of the repo page) renders it as APA or BibTeX.
+
+**Acknowledgment**: This work is part of the [*Enhancing Sustainable Disaster Relief in FSA Programs*](https://www.ars.usda.gov/research/project/?accnNo=444612) project, supported by the USDA Office of the Chief Economist, Office of Energy and Environmental Policy, and the USDA Climate Hubs.
 
 ## 📄 License
 

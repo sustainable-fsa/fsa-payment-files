@@ -1,0 +1,20 @@
+# Citation metadata for this repository (Citation File Format 1.2.0).
+# Standardized across the sustainable-fsa organization; the same
+# citation appears in human-readable form in README.md.
+cff-version: 1.2.0
+message: "If you use this dataset, please cite it using these metadata."
+type: dataset
+title: "Farm Payment Files, 2004–2024 (Sustainable FSA Archive)"
+authors:
+  - name: "USDA Farm Service Agency"
+  - family-names: Bocinsky
+    given-names: R. Kyle
+    affiliation: "Montana Climate Office, University of Montana"
+date-released: 2026-07-02
+repository-code: "https://github.com/sustainable-fsa/fsa-payment-files"
+url: "https://sustainable-fsa.com/fsa-payment-files/"
+keywords:
+  - USDA
+  - FSA
+  - drought
+  - Livestock Forage Disaster Program
