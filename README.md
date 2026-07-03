@@ -19,7 +19,10 @@ of these files into a partitioned, analysis-ready format.
 - `data-raw/`: Folder used for downloading and unpacking Excel and CSV
   files.
 - `fsa-payment-files/`: Final output directory containing the processed
-  data as a Parquet dataset, partitioned by state and year.
+  data as a Parquet dataset, partitioned by state and year. When
+  published to S3, this prefix also carries a `_manifest.txt` listing
+  the HTTPS URL of every Parquet file (the leading underscore keeps
+  Arrow’s dataset discovery from reading it as data).
 
 ------------------------------------------------------------------------
 
@@ -28,7 +31,7 @@ of these files into a partitioned, analysis-ready format.
 The `fsa-payment-files.R` script performs the following steps:
 
 1.  **Discovery**: Scrapes the FSA payment files website to find
-    downloadable Excel files (2004–2024).
+    downloadable Excel files (2004–2025).
 2.  **Download**: Saves original files to `data-raw/`.
 3.  **Extraction**: Parses each Excel file, handling annual variation in
     schema and formatting.
@@ -37,8 +40,10 @@ The `fsa-payment-files.R` script performs the following steps:
 5.  **Archiving**: Writes the full dataset to the `fsa-payment-files/`
     directory as partitioned Parquet files (`State FSA Name=` and
     `Accounting Program Year=` directories).
-6.  **Upload** *(optional)*: Uses the AWS `paws` package to upload the
-    full Parquet archive to a public S3 bucket for remote access.
+6.  **Upload** *(optional)*: Syncs the Parquet archive to a public S3
+    bucket with the AWS CLI (`aws s3 sync`), verifies the remote listing
+    matches the local build, and publishes a `_manifest.txt` of HTTPS
+    URLs for access via the CloudFront portal.
 
 ------------------------------------------------------------------------
 
@@ -56,7 +61,7 @@ You can access the data directly using:
 aws s3 ls s3://sustainable-fsa/fsa-payment-files/ --no-sign-request
 ```
 
-### In R with `arrow` and `s3://` support
+### In R with `arrow` (recommended)
 
 ``` r
 library(arrow)
@@ -70,14 +75,14 @@ library(arrow)
     ##     timestamp
 
 ``` r
-dataset <- 
-  open_dataset("s3://sustainable-fsa/fsa-payment-files/", 
-               filesystem = s3_bucket("sustainable-fsa", anonymous = TRUE))
+bucket <- s3_bucket("sustainable-fsa", anonymous = TRUE, region = "us-west-2")
+
+dataset <- open_dataset(bucket$path("fsa-payment-files"))
 
 dataset
 ```
 
-    ## FileSystemDataset with 1426 Parquet files
+    ## FileSystemDataset with 1642 Parquet files
     ## 16 columns
     ## County FSA Name: dictionary<values=string, indices=int16>
     ## FSA Code: dictionary<values=string, indices=int16>
@@ -95,6 +100,97 @@ dataset
     ## Source File: dictionary<values=string, indices=int16>
     ## State FSA Name: string
     ## Accounting Program Year: int32
+
+Queries that filter on the partition columns (`State FSA Name`,
+`Accounting Program Year`) only download the matching Parquet files.
+Arrow decodes the partition values for you, so filters use plain names —
+e.g., `dplyr::filter(\`State FSA Name\` == “New Mexico”)\`.
+
+------------------------------------------------------------------------
+
+## 🌐 Public Access via HTTPS (CloudFront)
+
+The same archive is served over plain HTTPS at:
+
+    https://data.sustainable-fsa.com/fsa-payment-files/
+
+HTTPS has no directory listing, so a manifest of every file URL is
+published at
+[`_manifest.txt`](https://data.sustainable-fsa.com/fsa-payment-files/_manifest.txt)
+(regenerated on every data update). [DuckDB](https://duckdb.org)’s
+`httpfs` extension can query these URLs directly — and filters on the
+hive partition columns are applied to the URL paths *before* any file is
+fetched, so you keep the benefits of the partitioning without S3 access:
+
+``` r
+library(DBI)
+
+manifest <- readLines("https://data.sustainable-fsa.com/fsa-payment-files/_manifest.txt")
+
+con <- dbConnect(duckdb::duckdb())
+```
+
+    ## duckdb: caching downloaded extensions in the package library:
+    ## ℹ /Users/kyle.bocinsky/Library/R/arm64/4.6/library/duckdb/extensions
+    ## ℹ This is removed when the package is re-installed; see `?duckdb_storage` to choose a different location.
+
+``` r
+invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
+
+files_sql <- paste0("[", paste0("'", manifest, "'", collapse = ",\n"), "]")
+
+lfp_mt <- dbGetQuery(con, glue::glue('
+  SELECT "Accounting%20Program%20Year" AS "Accounting Program Year",
+         SUM("Disbursement Amount") AS "Disbursement Amount"
+  FROM read_parquet({files_sql}, hive_partitioning = true)
+  WHERE "State%20FSA%20Name" = \'Montana\'
+  GROUP BY 1
+  ORDER BY 1
+'))
+
+dbDisconnect(con, shutdown = TRUE)
+
+tail(lfp_mt)
+```
+
+    ##    Accounting Program Year Disbursement Amount
+    ## 26                    2021           564897706
+    ## 27                    2022           251931734
+    ## 28                    2023           130575231
+    ## 29                    2024           435473337
+    ## 30                    2025            57473319
+    ## 31                      NA            45995811
+
+Notes for DuckDB users:
+
+- Because these URLs are percent-encoded, the hive column names surface
+  encoded — `"State%20FSA%20Name"` and `"Accounting%20Program%20Year"`
+  (quote them with *double* quotes in SQL) — and multi-word partition
+  values keep one layer of encoding, so filters need encoded literals
+  (e.g., `WHERE "State%20FSA%20Name" = 'New%20Mexico'`). Use DuckDB’s
+  `url_decode()` to clean values for display.
+- `"Accounting%20Program%20Year"` autocasts to an integer. A few
+  partitions hold rows with malformed years in the source files:
+  `__HIVE_DEFAULT_PARTITION__` (surfaces as `NULL`) and `0` — filter
+  them out if they matter for your analysis.
+- For simple cases you can skip the SQL-side filter entirely and subset
+  the manifest in R first,
+  e.g. `manifest[grepl("Name=Montana/", manifest, fixed = TRUE)]`.
+- DuckDB can also query the S3 bucket directly — no manifest needed, and
+  here the column names and values come through clean
+  (`"State FSA Name"`, `'New Mexico'`):
+
+``` r
+con <- dbConnect(duckdb::duckdb())
+dbExecute(con, "INSTALL httpfs; LOAD httpfs;")
+dbExecute(con, "CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2');")
+dbGetQuery(con, '
+  SELECT "County FSA Name", SUM("Disbursement Amount") AS total
+  FROM read_parquet(\'s3://sustainable-fsa/fsa-payment-files/*/*/*.parquet\',
+                    hive_partitioning = true)
+  WHERE "State FSA Name" = \'Montana\'
+  GROUP BY 1 ORDER BY total DESC LIMIT 10')
+```
 
 ------------------------------------------------------------------------
 
@@ -139,11 +235,12 @@ library(tigris)  # For state boundaries
 library(rmapshaper) # For innerlines function
 
 # Example accessing payment files on S3
-# A map of 2024 LFP Payments by county
+# A map of 2025 LFP Payments by county
 
 lfp_payments <-
-  # arrow::s3_bucket("sustainable-fsa/fsa-payment-files",
-  #                  anonymous = TRUE) %>%
+  # To run this from anywhere, open the dataset from S3 instead:
+  # arrow::s3_bucket("sustainable-fsa", anonymous = TRUE,
+  #                  region = "us-west-2")$path("fsa-payment-files") |>
   "fsa-payment-files" |>
   arrow::open_dataset() |>
   dplyr::filter(`Accounting Program Description` %in% 
@@ -244,11 +341,20 @@ FSA county codes are documented in [FSA Handbook 1-CM, Exhibit
 
 If you use this data in published work, please cite:
 
-> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Curated and archived by R. Kyle Bocinsky, Montana Climate Office, University of Montana. Sustainable FSA project. Accessed YYYY-MM-DD. <https://sustainable-fsa.com/fsa-payment-files/>
+> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Curated and
+> archived by R. Kyle Bocinsky, Montana Climate Office, University of
+> Montana. Sustainable FSA project. Accessed YYYY-MM-DD.
+> <https://sustainable-fsa.com/fsa-payment-files/>
 
-Machine-readable metadata are in [`CITATION.cff`](CITATION.cff); GitHub's **Cite this repository** button (top right of the repo page) renders it as APA or BibTeX.
+Machine-readable metadata are in [`CITATION.cff`](CITATION.cff);
+GitHub’s **Cite this repository** button (top right of the repo page)
+renders it as APA or BibTeX.
 
-**Acknowledgment**: This work is part of the [*Enhancing Sustainable Disaster Relief in FSA Programs*](https://www.ars.usda.gov/research/project/?accnNo=444612) project, supported by the USDA Office of the Chief Economist, Office of Energy and Environmental Policy, and the USDA Climate Hubs.
+**Acknowledgment**: This work is part of the [*Enhancing Sustainable
+Disaster Relief in FSA
+Programs*](https://www.ars.usda.gov/research/project/?accnNo=444612)
+project, supported by the USDA Office of the Chief Economist, Office of
+Energy and Environmental Policy, and the USDA Climate Hubs.
 
 ## 📄 License
 
