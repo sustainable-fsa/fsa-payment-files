@@ -128,13 +128,6 @@ library(DBI)
 manifest <- readLines("https://data.sustainable-fsa.com/fsa-payment-files/_manifest.txt")
 
 con <- dbConnect(duckdb::duckdb())
-```
-
-    ## duckdb: caching downloaded extensions in the package library:
-    ## ℹ /Users/kyle.bocinsky/Library/R/arm64/4.6/library/duckdb/extensions
-    ## ℹ This is removed when the package is re-installed; see `?duckdb_storage` to choose a different location.
-
-``` r
 invisible(dbExecute(con, "INSTALL httpfs; LOAD httpfs;"))
 
 files_sql <- paste0("[", paste0("'", manifest, "'", collapse = ",\n"), "]")
@@ -257,7 +250,7 @@ lfp_payments <-
 
 ## Download from the FSA_Counties_dd17 archive
 counties <- 
-  sf::read_sf("https://sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
+  sf::read_sf("https://data.sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
               layer = "counties") |>
   sf::st_set_crs("EPSG:4326") |>
   sf::st_transform("EPSG:5070")

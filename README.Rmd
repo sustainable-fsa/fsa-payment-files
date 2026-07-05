@@ -175,7 +175,7 @@ lfp_payments <-
 
 ## Download from the FSA_Counties_dd17 archive
 counties <- 
-  sf::read_sf("https://sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
+  sf::read_sf("https://data.sustainable-fsa.com/fsa-counties-dd17/fsa-counties-dd17.topojson",
               layer = "counties") |>
   sf::st_set_crs("EPSG:4326") |>
   sf::st_transform("EPSG:5070")
