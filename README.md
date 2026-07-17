@@ -334,7 +334,7 @@ FSA county codes are documented in [FSA Handbook 1-CM, Exhibit
 
 If you use this data in published work, please cite:
 
-> USDA Farm Service Agency. *Farm Payment Files, 2004–2024*. Curated and
+> USDA Farm Service Agency. *Farm Payment Files, 2004–2025*. Curated and
 > archived by R. Kyle Bocinsky, Montana Climate Office, University of
 > Montana. Sustainable FSA project. Accessed YYYY-MM-DD.
 > <https://sustainable-fsa.com/fsa-payment-files/>
